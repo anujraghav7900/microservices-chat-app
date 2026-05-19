@@ -1,0 +1,70 @@
+services:
+  mongodb:
+    image: mongo:7
+    container_name: pulse-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - pulse-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile.app
+    container_name: pulse-auth-service
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      PORT: 5002
+      MONGO_URI: mongodb://mongodb:27017/chatapp
+      JWT_SECRET: chatappsecret
+    ports:
+      - "5002:5002"
+    networks:
+      - pulse-network
+
+  chat-service:
+    build:
+      context: ./chat-service
+    container_name: pulse-chat-service
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      PORT: 5001
+      MONGO_URI: mongodb://mongodb:27017/chatapp
+    ports:
+      - "5001:5001"
+    networks:
+      - pulse-network
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: pulse-frontend
+    restart: unless-stopped
+    depends_on:
+      - auth-service
+      - chat-service
+    ports:
+      - "5173:80"
+    networks:
+      - pulse-network
+
+volumes:
+  mongo-data:
+
+networks:
+  pulse-network:
+    driver: bridge

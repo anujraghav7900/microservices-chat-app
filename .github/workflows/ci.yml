@@ -1,0 +1,67 @@
+name: Pulse CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+jobs:
+  build-test-and-docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Install auth dependencies
+        working-directory: auth-service
+        run: npm ci
+
+      - name: Test auth service
+        working-directory: auth-service
+        run: npm test
+
+      - name: Install chat dependencies
+        working-directory: chat-service
+        run: npm install
+
+      - name: Test chat service
+        working-directory: chat-service
+        run: npm test
+
+      - name: Package Maven demo service
+        working-directory: maven-demo-service
+        run: mvn clean package
+
+      - name: Validate Docker Compose
+        run: docker compose config
+
+      - name: Build Docker images
+        run: docker compose build
+
+      - name: Build Maven Docker image
+        run: docker build -t pulse-maven-demo:ci maven-demo-service
+
+      - name: Deployment simulation
+        run: echo "Docker images built and compose configuration validated."
